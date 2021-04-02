@@ -2,10 +2,10 @@ import bcrypt from 'bcrypt'
 import UserData from "../model/UserModel";
 import {generateAuthToken} from "../Helpers/token";
 
-const users = [];
+// const users = [];
 class UserController {
-  static signup = (req, res) => {
-    const id = users.length + 1;
+  static signup = async(req, res) => {
+    // const id = users.length + 1;
     let {
       firstname,
       lastname,
@@ -17,24 +17,19 @@ class UserController {
       address,
     } = req.body;
     password=bcrypt.hashSync(password,10)
-    const isEmailExist = users.find((user) => user.email === req.body.email);
-
+  
+    // const isEmailExist = users.find((user) => user.email === req.body.email);
+    const isEmailExist=await UserData.findOne({
+      email:email,
+    })
     if (isEmailExist) {
       return res.status(409).json({ status:409, error: "email is duplicated" });
     }
-    const user = new UserData(
-      id,
-      firstname,
-      lastname,
-      email,
-      password,
-      gender,
-      rule,
-      department,
-      address
-    );
-    users.push(user);
-    const data = users.find((user) => user.email == email);
+
+    req.body.password =password;
+    const data = await UserData.create(req.body);
+  
+   
    
     if (!data) {
       return res.status(417).json({
@@ -45,7 +40,7 @@ class UserController {
     }
     else{
 
-      let {password, ...dataWithoutPassword} = data;
+      let {password, ...dataWithoutPassword} = data._doc;
       return res.status(201).json({
         status:201,
         message:"account successfully created",
@@ -60,44 +55,47 @@ class UserController {
   //   password,
   // );
  
-  static signin = (req, res) => {
+  static signin =async (req, res) => {
   
     let {
       email,
       password,
     } = req.body;
-    const user = new UserData(
-      email,
-      password,
-    );
-    users.push(user);
-    const data = users.find((user) => user.email === email);
-    const isUserExist = users.find((user) => user.email === email);
-
-    if (isUserExist && bcrypt.compareSync(password, isUserExist.password)) {
-      
-    const token= generateAuthToken({
+    
+    const isUserExit = await UserData.findOne({email:email});
+       
+    if (isUserExit && bcrypt.compareSync(password, isUserExit.password)) {
+      const data=isUserExit;
+      const token= generateAuthToken({
       id:data.id,
       email:data.email,
       rule:data.rule,
     
     });
-    let {password, ...dataWithoutPassword}=data;
-    return res.status(200).json({
+    
       
+    let {password, ...dataWithoutPassword}=data._doc;
+    return res.status(200).json({
+     
       status: 200,
       messsage: "signin successful",
       token:token,
       data:dataWithoutPassword
-    });
+        })
+    
       }
+    return res.status(401).json({
+      status:401,
+      message:"log in failed"
+    })
   }
   
+}  
     
     
 
 
 
 
-}
-export default {UserController, users};
+
+export default {UserController,UserData};
